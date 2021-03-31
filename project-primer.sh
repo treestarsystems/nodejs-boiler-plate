@@ -75,14 +75,14 @@ function do_generate_mongod_conf {
     logAppend: true
     logRotate: rename
     timeStampFormat: \"ctime\"
-    path: $baseDir/$projectDir/log_storage/365dc-omnitool_Mongod.log
+    path: $baseDir/$projectDir/log_storage/$projectName_Mongod.log
   net:
     port: $mongoPort
     bindIp: 127.0.0.1,::1
     ipv6: true
     tls:
       mode: "requireTLS"
-      certificateKeyFile: $baseDir/$projectDir/system_confs/certs/365dc-omnitool_Cert.pem
+      certificateKeyFile: $baseDir/$projectDir/system_confs/certs/$projectName_Cert.pem
     compression:
       compressors: zstd,snappy
   processManagement:
@@ -113,26 +113,13 @@ function do_prompts {
  done
 
 
- #Prompt for installation directory
- read -e -p "Please enter the full destination path (Ex: /opt): " baseDir
- #Validate the input and keep asking until it is correct.
- while [[ ! -d $baseDir ]]
- do
-  read -e -p "Please enter a valid directory (Ex: /opt): " baseDir
- done
+ #UnTested code blocks
 
  #Prompt for installation directory
  read -e -p "Please enter the full destination path (Ex: /opt): " baseDir
  #Validate the input and keep asking until it is correct.
  while [[ ! -d $baseDir ]]
  do
-  read -e -p "Please enter a valid directory (Ex: /opt): " baseDirectory
- done
- #Prompt for installation directory
- read -e -p "Please enter the full destination path (Ex: /opt): " baseDirectory
- #Validate the input and keep asking until it is correct.
- while [[ ! -d $baseDirectory ]]
- do
-  read -e -p "Please enter a valid directory (Ex: /opt): " baseDirectory
+  read -e -p "Please enter a valid directory (Ex: /opt): " baseDir
  done
 }
