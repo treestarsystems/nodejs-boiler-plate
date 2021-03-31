@@ -102,3 +102,11 @@ dist
 
 # TernJS port file
 .tern-port
+
+#Custom
+/trash
+*.swp
+*.save
+*.json
+hardcopy.0
+screenlog.0
