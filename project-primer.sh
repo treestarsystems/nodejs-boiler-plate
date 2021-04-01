@@ -6,6 +6,7 @@ baseDir=''
 appProdPort=''
 appDevPort=''
 mongoPort=''
+projectDescription=''
 
 function genrandom {
  date +%s | sha256sum | base64 | head -c $1 ; echo
@@ -48,7 +49,7 @@ function do_generate_pm2 {
        \"HOST\": \"0.0.0.0\"
      }
    }]
-  }" # > system_confs/ecosystem.config.js
+  }" # > $baseDir/$projectName/system_confs/ecosystem.config.js
 }
 
 function do_generate_system_vars {
@@ -59,7 +60,7 @@ function do_generate_system_vars {
    "homedir":\"$baseDir/$projectName\",
    "shell":"/bin/bash",
    "systemId": "$systemId"
-  }" #> system_confs/system_vars.json
+  }" #> $baseDir/$projectName/system_confs/system_vars.json
 }
 
 function do_generate_mongod_conf {
@@ -91,8 +92,78 @@ function do_generate_mongod_conf {
     timeZoneInfo: /usr/share/zoneinfo
   setParameter:
     enableLocalhostAuthBypass: false
- " #> system_confs/mongod.conf
+ " #> $baseDir/$projectName/system_confs/mongod.conf
 }
+
+function do_generate_readme {
+ #Generate README
+ echo "
+  # $projectName
+  $projectDescription
+ " #> $baseDir/$projectName/README.md
+}
+
+function do_generate_package_json {
+ #Generate package.json
+ echo "
+  {
+   \"name\": \"$projectName\",
+   \"version\": \"1.0.0\",
+   \"description\": \"$projectDescription\",
+   \"main\": \"index.js\",
+   \"scripts\": {
+    \"start\": \"pm2 start system_confs/ecosystem.config.js --env prod\",
+    \"dev\": \"pm2 start system_confs/ecosystem.config.js --env dev\",
+    \"stop-instance\": \"server/service.js -k\",
+    \"status-instance\": \"pm2 status\",
+    \"delete-instance\": \"server/service.js -d\",
+    \"restart-instance\": \"server/service.js -r\",
+    \"log-instance\": \"pm2 log\"
+   },
+   \"repository\": {
+     \"type\": \"git\",
+     \"url\": \"git+https://github.com/treestarsystems/$projectName.git\"
+   },
+   \"author\": \"Tree Star Systems\",
+   \"license\": \"MIT\",
+   \"private\": true,
+   \"bugs\": {
+     \"url\": \"https://github.com/treestarsystems/$projectName/issues\"
+   },
+   \"homepage\": \"https://treestarsystems.com/\",
+   \"dependencies\": {
+    \"axios\": \"^0.21.1\",
+    \"bcryptjs\": \"^2.4.3\",
+    \"body-parser\": \"^1.19.0\",
+    \"compression\": \"1.7.4\",
+    \"connect-mongo\": \"^3.2.0\",
+    \"cors\": \"^2.8.5\",
+    \"cron\": \"^1.8.2\",
+    \"express\": \"^4.17.0\",
+    \"express-handlebars\": \"^3.1.0\",
+    \"express-session\": \"^1.17.1\",
+    \"joi\": \"^17.3.0\",
+    \"lodash\": \"^4.17.20\",
+    \"minimist\": \"^1.2.5\",
+    \"mongoose\": \"^5.11.11\",
+    \"node-emoji\": \"^1.10.0\",
+    \"nodemailer\": \"^6.4.17\"
+   }
+  }
+ " #> $baseDir/$projectName/package.json
+}
+
+function do_generate_core_js {
+ #Generate core.js file
+ #Uncommen for deployment
+# sed -i -e "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
+ #Erase line for deployment
+ sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
+} #>
+
+#function do_generate_ {
+
+#} #>
 
 #Just to test small bits of code at a time.
 function do_prompts_test {
@@ -126,6 +197,9 @@ function do_prompts {
  do
   read -e -p "Enter A Valid Project Name (Valid Chars: Letter,Numbers,-,_): " projectName
  done
+
+ #Prompt for projectDescription
+ read -e -p "Enter Project Description: " projectDescription
 
  #Prompt for systemId
  read -e -p "Enter A System ID (Valid Chars: Letter,Numbers,-,_): " systemId
@@ -190,9 +264,12 @@ function do_prompts {
 #  read -e -p ": " Dir
 # done
 
- do_generate_pm2
- do_generate_system_vars
- do_generate_mongod_conf
+# do_generate_pm2
+# do_generate_system_vars
+# do_generate_mongod_conf
+# do_generate_readme
+# do_generate_package_json
+ do_generate_core_js
 }
 
 do_prompts
