@@ -155,7 +155,7 @@ function do_generate_package_json {
 
 function do_generate_core_js {
  #Generate core.js file
- #Uncommen for deployment
+ #Uncomment for deployment
 # sed -i -e "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
  #Erase line for deployment
  sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
@@ -273,3 +273,4 @@ function do_prompts {
 }
 
 do_prompts
+

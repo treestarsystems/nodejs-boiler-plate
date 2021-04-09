@@ -104,19 +104,19 @@ function insertSpecialChars(word) {
  return word.substring(0, index) + text + word.substring(index);
 }
 
-//https://stackoverflow.com/a/1527820
+//Source: https://stackoverflow.com/a/1527820
 function getRandomInt(min, max) {
  min = Math.ceil(min);
  max = Math.floor(max);
  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-//https://gist.github.com/efenacigiray/9367920
+//Source: https://gist.github.com/efenacigiray/9367920
 function replaceAt(string, index, replace) {
  return string.substring(0, index) + replace + string.substring(index + 1);
 }
 
-//https://stackoverflow.com/a/2117523
+//Source: https://stackoverflow.com/a/2117523
 function uuidv4() {
  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
   var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
