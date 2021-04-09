@@ -7,13 +7,14 @@ appProdPort=''
 appDevPort=''
 mongoPort=''
 projectDescription=''
+regEx='(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)'
 
 function genrandom {
  date +%s | sha256sum | base64 | head -c $1 ; echo
 }
 
 function do_system_dependencies {
- echo "Installing system dependencies"
+ echo "Installing system dependencies...\n"
  apt update
  apt -y upgrade
  apt install -y nodejs nmap whois rsync screen git build-essential npm nano
@@ -21,7 +22,7 @@ function do_system_dependencies {
 }
 
 function do_generate_pm2 {
- #Generate PM2 conf
+ echo "Generating PM2 conf...\n"
  echo "
   module.exports = {
    apps : [{
@@ -53,7 +54,7 @@ function do_generate_pm2 {
 }
 
 function do_generate_system_vars {
- #Generate system_vars.json file
+ echo "Generating system_vars.json file...\n"
  echo "
   {
    "username":"root",
@@ -64,7 +65,7 @@ function do_generate_system_vars {
 }
 
 function do_generate_mongod_conf {
- #Generate mongod.conf file
+ echo "Generating mongod.conf file...\n"
  echo "
   storage:
     dbPath: $baseDir/$projectName/db_storage
@@ -153,8 +154,56 @@ function do_generate_package_json {
  " #> $baseDir/$projectName/package.json
 }
 
+function do_generate_nginx_conf {
+ echo "Generating NGINX Configuration..."
+# modifiedSystemId = $()
+ echo "
+  #HTTP to HTTPS Redirect
+  server {
+      listen 80;
+      listen [::]:80;
+      server_name $systemId;
+      if (\$host = $systemId) {
+          return 301 https://\$host\$request_uri;
+      }
+      if (\$host = $systemId) {
+          return 301 https://\$host\$request_uri;
+      }
+  }
+
+  #Host/Vhost/Alias conf
+  server {
+       listen 443 ssl;
+       listen [::]:443 ssl;
+       # ssl_certificate     /etc/letsencrypt/live/$systemId/fullchain.pem;
+       # ssl_certificate_key /etc/letsencrypt/live/$systemId/privkey.pem;
+       server_name $systemId;
+
+       proxy_set_header Host \$host;
+       proxy_set_header X-Forwarded-Proto \$scheme;
+       proxy_set_header X-Real-IP \$remote_addr;
+       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+
+       location / {
+               proxy_pass http://127.0.0.1:$appProdPort/;
+               proxy_http_version 1.1;
+               proxy_set_header Upgrade \$http_upgrade;
+               proxy_set_header Connection 'upgrade';
+               proxy_set_header Host \$host;
+               proxy_cache_bypass \$http_upgrade;
+       }
+
+       location /public/ {
+               root /opt/$projectName/server/view;
+               access_log off;
+               expires max;
+       }
+  }
+ " #> /etc/nginx/sites-enabled/default-test
+}
+
 function do_generate_core_js {
- #Generate core.js file
+ echo "Generating core.js file...\n"
  #Uncomment for deployment
 # sed -i -e "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
  #Erase line for deployment
@@ -163,27 +212,13 @@ function do_generate_core_js {
 
 #function do_generate_ {
 
-#} #>
+ #>
+#}
 
 #Just to test small bits of code at a time.
-function do_prompts_test {
- #Prompt for appPort
- read -e -p "Enter The Application's Production Port Number (Valid Chars: Numbers): " appProdPort
- #Validate the input and keep asking until it is correct.
- #Source: https://stackoverflow.com/a/49832505
- while [[ $appProdPort == "" ]] || [ $appProdPort -ge 65536 ] || [[ ! $appProdPort =~ ^[0-9]+$ ]]
- do
-  read -e -p "Enter A Valid Port Number (Valid Chars: Numbers): " appProdPort
- done
- #Prompt for appDevPort
- read -e -p "Enter The Application's Development Port Number (Valid Chars: Numbers): " appDevPort
- #Validate the input and keep asking until it is correct.
- #Source: https://stackoverflow.com/a/49832505
- while [[ $appDevPort == "" ]] || [ $appDevPort -ge 65536 ] || [[ ! $appDevPort =~ ^[0-9]+$ ]] || [[ ! $appDevPort -ne $appProdPort ]]
- do
-  read -e -p "Enter A Valid & Unused Port Number (Valid Chars: Numbers): " appDevPort
- done
-}
+#function do_prompts_test {
+ #Prompt for systemId
+#}
 
 #For testing purposes
 #do_prompts_test
@@ -205,7 +240,7 @@ function do_prompts {
  read -e -p "Enter A System ID (Valid Chars: Letter,Numbers,-,_): " systemId
  #Validate the input and keep asking until it is correct.
  #Source: https://stackoverflow.com/a/49832505
- while [[ $systemId == "" ]] || [[ $systemId == "." ]] || [[ $systemId == ".." ]] || [ $(echo "${#systemId}") -gt 255 ] || [[ ! $systemId =~ ^[0-9a-zA-Z._-]+$ ]] || [[ ! $(echo $systemId | cut -c1-1) =~ ^[0-9a-zA-Z.]+$ ]]
+ while [[ ! $(echo $systemId | grep -P $regEx) == $systemId ]]
  do
   read -e -p "Enter A Valid System ID (Valid Chars: Letter,Numbers,-,_): " systemId
  done
@@ -269,8 +304,9 @@ function do_prompts {
 # do_generate_mongod_conf
 # do_generate_readme
 # do_generate_package_json
- do_generate_core_js
+# do_generate_core_js
+ do_generate_nginx_conf
 }
 
-do_prompts
+#do_prompts
 
