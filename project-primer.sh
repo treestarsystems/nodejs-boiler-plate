@@ -7,17 +7,20 @@ appProdPort=''
 appDevPort=''
 mongoPort=''
 projectDescription=''
-regEx='(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)'
+regExValidHostname='(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)'
 
+#Pass the desired length of the random string as a number. Ex: genrandom 5
 function genrandom {
  date +%s | sha256sum | base64 | head -c $1 ; echo
 }
 
 function do_system_dependencies {
  echo "Installing system dependencies...\n"
- apt update
- apt -y upgrade
- apt install -y nodejs nmap whois rsync screen git build-essential npm nano
+ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+ sudo apt-add-repository https://cli.github.com/packages
+ sudo apt update
+ sudo apt -y upgrade
+ sudo apt install -y nodejs nmap whois rsync screen git build-essential npm nano gh
  npm install pm2 -g
 }
 
@@ -210,6 +213,32 @@ function do_generate_core_js {
  sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
 } #>
 
+function do_git {
+ #Run authentication procedure. Check if already done some how? Maybe allow user to skip
+# gh auth login --with-token < filename
+ #Prompt for authToken
+ read -e -p "Please enter your GitHub Auth Token? (Press Enter to Skip): " authToken
+ if [ ! -z "$authToken" ]
+ then
+  randomString=$(genrandom 5)
+  echo "$authToken" > /tmp/authtoken-$randomString
+  gh auth login --with-token < /tmp/authtoken-$randomString
+  ghAuthLoginExitCode=$(echo "$?")
+  if  [ ! $ghAuthLoginExitCode == 0 ]
+  then
+   echo -e "\nIncorrect entry or service not available. Please check: \nhttps://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token\n"
+  fi
+ fi
+ #Source: https://stackoverflow.com/a/49832505
+# while [[ $projectName == "" ]] || [[ $projectName == "." ]] || [[ $projectName == ".." ]] || [ $(echo "${#projectName}") -gt 255 ] || [[ ! $projectName =~ ^[0-9a-zA-Z._-]+$ ]] || [[ ! $(echo $projectName | cut -c1-1) =~ ^[0-9a-zA-Z.]+$ ]]
+# do
+#  read -e -p "Enter A Valid Project Name (Valid Chars: Letter,Numbers,-,_): " projectName
+# done
+
+ #>
+}
+
+do_git
 #function do_generate_ {
 
  #>
@@ -240,7 +269,7 @@ function do_prompts {
  read -e -p "Enter A System ID (Valid Chars: Letter,Numbers,-,_): " systemId
  #Validate the input and keep asking until it is correct.
  #Source: https://stackoverflow.com/a/49832505
- while [[ ! $(echo $systemId | grep -P $regEx) == $systemId ]]
+ while [[ ! $(echo $systemId | grep -P $regExValidHostname) == $systemId ]]
  do
   read -e -p "Enter A Valid System ID (Valid Chars: Letter,Numbers,-,_): " systemId
  done
