@@ -8,6 +8,7 @@ appDevPort=''
 mongoPort=''
 projectDescription=''
 regExValidHostname='(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)'
+regExValidVisibility='(^|\s)\Kpublic(?=\s|$)|(^|\s)\Kprivate(?=\s|$)|(^|\s)\Kinternal(?=\s|$)'
 
 #Pass the desired length of the random string as a number. Ex: genrandom 5
 function genrandom {
@@ -16,6 +17,7 @@ function genrandom {
 
 function do_system_dependencies {
  echo "Installing system dependencies...\n"
+ sudo apt install -y software-properties-common
  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
  sudo apt-add-repository https://cli.github.com/packages
  sudo apt update
@@ -214,28 +216,58 @@ function do_generate_core_js {
 } #>
 
 function do_git {
- #Run authentication procedure. Check if already done some how? Maybe allow user to skip
-# gh auth login --with-token < filename
- #Prompt for authToken
- read -e -p "Please enter your GitHub Auth Token? (Press Enter to Skip): " authToken
- if [ ! -z "$authToken" ]
+# randomString=$(genrandom 5)
+# #Run authentication procedure. Check if already done some how? Maybe allow user to skip
+# # gh auth login --with-token < filename
+# #Prompt for authToken file
+# read -e -p "Please enter the full path to your GitHub Auth Token file? (Press Enter to manually enter the Token String): " authTokenFile
+# if [ ! -f "$authTokenFile" ]
+# then
+#  #Prompt for authToken string
+#  read -e -s -p "Please enter your GitHub Auth Token? (Press Enter to Skip): " authTokenString
+#  if [ ! -z "$authTokenString" ]
+#  then
+#   echo "$authTokenString" > /tmp/authtoken-$randomString
+#   gh auth login --with-token < /tmp/authtoken-$randomString
+#   ghAuthLoginExitCode=$(echo "$?")
+#   if  [ ! $ghAuthLoginExitCode == 0 ]
+#   then
+#    echo -e "\nIncorrect entry or service not available. Please check: \nhttps://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token\n"
+#   fi
+#  fi
+#  if [ -f /tmp/authtoken-$randomString ]
+#  then
+#   rm /tmp/authtoken-$randomString
+#  fi
+# else
+#  gh auth login --with-token < $authTokenFile
+#  ghAuthLoginExitCode=$(echo "$?")
+# # echo -e "Command Exit Code: $ghAuthLoginExitCode"
+# fi
+ #Repository visibility
+ read -e -p "Repo Visibility? (public,private,internal|Default: public): " visibility
+ #Default variable if blank
+ if [ -z $visibility ]
  then
-  randomString=$(genrandom 5)
-  echo "$authToken" > /tmp/authtoken-$randomString
-  gh auth login --with-token < /tmp/authtoken-$randomString
-  ghAuthLoginExitCode=$(echo "$?")
-  if  [ ! $ghAuthLoginExitCode == 0 ]
-  then
-   echo -e "\nIncorrect entry or service not available. Please check: \nhttps://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token\n"
-  fi
+  visibility='public'
  fi
- #Source: https://stackoverflow.com/a/49832505
-# while [[ $projectName == "" ]] || [[ $projectName == "." ]] || [[ $projectName == ".." ]] || [ $(echo "${#projectName}") -gt 255 ] || [[ ! $projectName =~ ^[0-9a-zA-Z._-]+$ ]] || [[ ! $(echo $projectName | cut -c1-1) =~ ^[0-9a-zA-Z.]+$ ]]
-# do
-#  read -e -p "Enter A Valid Project Name (Valid Chars: Letter,Numbers,-,_): " projectName
-# done
+ #Validate the input and keep asking until it is correct.
+ while [[ ! $(echo $visibility | grep -P $regExValidVisibility) == $visibility ]]
+ do
+  read -e -p "Enter A Valid Visibility String. (public,private,internal|Default: public): " visibility
+  #Default variable if blank
+  if [ $visibility == ""]
+  then
+   visibility='public'
+  fi
+ done
 
- #>
+ echo "gh repo create --$visibility -y"
+
+# cd $baseDir
+# git init $projectName
+# cd /$baseDir/$projectName
+# gh repo create $projectName --public -y -d "$projectDescription"
 }
 
 do_git
@@ -304,7 +336,7 @@ function do_prompts {
  #Prompt for installation's base directory
  read -e -p "Enter The Base Installation Directory (Ex: /opt|Default: /opt): " baseDir
  #Default variable if blank
- if [ $baseDir == ""]
+ if [ $baseDir == "" ]
  then
   baseDir='/opt'
  fi
@@ -328,13 +360,16 @@ function do_prompts {
 #  read -e -p ": " Dir
 # done
 
+
+ do_system_dependencies
+ do_git
 # do_generate_pm2
 # do_generate_system_vars
 # do_generate_mongod_conf
 # do_generate_readme
 # do_generate_package_json
 # do_generate_core_js
- do_generate_nginx_conf
+# do_generate_nginx_conf
 }
 
 #do_prompts
