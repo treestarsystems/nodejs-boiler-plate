@@ -1,8 +1,10 @@
 #!/bin/bash
 
+gitHubUsername=''
+scriptDir=$(echo "$PWD")
 projectName=''
 systemId=''
-baseDir=''
+baseDir='/opt'
 appProdPort=''
 appDevPort=''
 mongoPort=''
@@ -16,7 +18,7 @@ function genrandom {
 }
 
 function do_system_dependencies {
- echo "Installing system dependencies...\n"
+ echo -e "Installing system dependencies..."
  sudo apt install -y software-properties-common
  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
  sudo apt-add-repository https://cli.github.com/packages
@@ -27,7 +29,7 @@ function do_system_dependencies {
 }
 
 function do_generate_pm2 {
- echo "Generating PM2 conf...\n"
+ echo -e "Generating PM2 conf..."
  echo "
   module.exports = {
    apps : [{
@@ -55,22 +57,22 @@ function do_generate_pm2 {
        \"HOST\": \"0.0.0.0\"
      }
    }]
-  }" # > $baseDir/$projectName/system_confs/ecosystem.config.js
+  }" > $baseDir/$projectName/system_confs/ecosystem.config.js
 }
 
 function do_generate_system_vars {
- echo "Generating system_vars.json file...\n"
+ echo -e "Generating system_vars.json file..."
  echo "
   {
    "username":"root",
    "homedir":\"$baseDir/$projectName\",
    "shell":"/bin/bash",
    "systemId": "$systemId"
-  }" #> $baseDir/$projectName/system_confs/system_vars.json
+  }" > $baseDir/$projectName/system_confs/system_vars.json
 }
 
 function do_generate_mongod_conf {
- echo "Generating mongod.conf file...\n"
+ echo -e "Generating mongod.conf file..."
  echo "
   storage:
     dbPath: $baseDir/$projectName/db_storage
@@ -98,19 +100,21 @@ function do_generate_mongod_conf {
     timeZoneInfo: /usr/share/zoneinfo
   setParameter:
     enableLocalhostAuthBypass: false
- " #> $baseDir/$projectName/system_confs/mongod.conf
+ " > $baseDir/$projectName/system_confs/mongod.conf
 }
 
 function do_generate_readme {
  #Generate README
+ echo -e "Generating README.md file..."
  echo "
   # $projectName
   $projectDescription
- " #> $baseDir/$projectName/README.md
+ " > $baseDir/$projectName/README.md
 }
 
 function do_generate_package_json {
  #Generate package.json
+ echo -e "Generating package.json file..."
  echo "
   {
    \"name\": \"$projectName\",
@@ -152,16 +156,16 @@ function do_generate_package_json {
     \"lodash\": \"^4.17.20\",
     \"minimist\": \"^1.2.5\",
     \"mongoose\": \"^5.11.11\",
+    \"mz\": \"^2.7.0\",
     \"node-emoji\": \"^1.10.0\",
     \"nodemailer\": \"^6.4.17\"
    }
   }
- " #> $baseDir/$projectName/package.json
+ " > $baseDir/$projectName/package.json
 }
 
 function do_generate_nginx_conf {
- echo "Generating NGINX Configuration..."
-# modifiedSystemId = $()
+ echo -e "Generating NGINX Configuration..."
  echo "
   #HTTP to HTTPS Redirect
   server {
@@ -204,46 +208,59 @@ function do_generate_nginx_conf {
                expires max;
        }
   }
- " #> /etc/nginx/sites-enabled/default-test
+ " > /etc/nginx/sites-enabled/default-test
 }
 
 function do_generate_core_js {
- echo "Generating core.js file...\n"
- #Uncomment for deployment
-# sed -i -e "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
- #Erase line for deployment
- sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" ./static_files/core.js
-} #>
+ echo -e "Generating core.js file..."
+ sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" $scriptDir/static_files/core.js > $baseDir/$projectName/server/core/core.js
+}
 
+function do_generate_base_folders {
+ echo -e "Generating base folders..."
+ mkdir -p $baseDir/$projectName/{server/{core,controller/cron,view/{pages/{layouts,partials},public/{js,css,images}},model},system_confs/certs}
+}
+
+function do_static_files {
+ cp $scriptDir/static_files/cronJobs.js $baseDir/$projectName/server/core/cronJobs.js
+ cp $scriptDir/static_files/cron.js $baseDir/$projectName/server/controller/cron/cron.js
+ cp $scriptDir/static_files/index.js $baseDir/$projectName/server/index.js
+ cp $scriptDir/static_files/routes.js $baseDir/$projectName/server/controller/routes.js
+ cp $scriptDir/static_files/service.js $baseDir/$projectName/server/service.js
+}
+
+#TaFix: When setting visibility to anything other than public. The command prompts for credentials. Find a way to resolve that or not show.
 function do_git {
-# randomString=$(genrandom 5)
-# #Run authentication procedure. Check if already done some how? Maybe allow user to skip
-# # gh auth login --with-token < filename
-# #Prompt for authToken file
-# read -e -p "Please enter the full path to your GitHub Auth Token file? (Press Enter to manually enter the Token String): " authTokenFile
-# if [ ! -f "$authTokenFile" ]
-# then
-#  #Prompt for authToken string
-#  read -e -s -p "Please enter your GitHub Auth Token? (Press Enter to Skip): " authTokenString
-#  if [ ! -z "$authTokenString" ]
-#  then
-#   echo "$authTokenString" > /tmp/authtoken-$randomString
-#   gh auth login --with-token < /tmp/authtoken-$randomString
-#   ghAuthLoginExitCode=$(echo "$?")
-#   if  [ ! $ghAuthLoginExitCode == 0 ]
-#   then
-#    echo -e "\nIncorrect entry or service not available. Please check: \nhttps://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token\n"
-#   fi
-#  fi
-#  if [ -f /tmp/authtoken-$randomString ]
-#  then
-#   rm /tmp/authtoken-$randomString
-#  fi
-# else
-#  gh auth login --with-token < $authTokenFile
-#  ghAuthLoginExitCode=$(echo "$?")
-# # echo -e "Command Exit Code: $ghAuthLoginExitCode"
-# fi
+ randomString=$(genrandom 5)
+ authTokenFile=''
+ #Run authentication procedure. Check if already done some how? Maybe allow user to skip
+ # gh auth login --with-token < filename
+ #Prompt for authToken file
+ read -e -p "Please enter the full path to your GitHub Auth Token file? (Press Enter to manually enter the Token String): " authTokenFile
+ if [ ! -f "$authTokenFile" ]
+ then
+  #Prompt for authToken string
+  read -e -s -p "Please enter your GitHub Auth Token? (Press Enter to Skip): " authTokenString
+  if [ ! -z "$authTokenString" ]
+  then
+   authTokenFile='/tmp/authtoken-$randomString'
+   echo "$authTokenString" > $authTokenFile
+   gh auth login --with-token < $authTokenFile
+   ghAuthLoginExitCode=$(echo "$?")
+   if  [ ! $ghAuthLoginExitCode == 0 ]
+   then
+    echo -e "\nIncorrect entry or service not available. Please check: \nhttps://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token\n"
+   fi
+  fi
+  if [ -f "$authTokenFile" ]
+  then
+   rm $authTokenFile
+  fi
+ else
+  gh auth login --with-token < $authTokenFile
+  ghAuthLoginExitCode=$(echo "$?")
+ # echo -e "Command Exit Code: $ghAuthLoginExitCode"
+ fi
  #Repository visibility
  read -e -p "Repo Visibility? (public,private,internal|Default: public): " visibility
  #Default variable if blank
@@ -262,27 +279,24 @@ function do_git {
   fi
  done
 
- echo "gh repo create --$visibility -y"
-
-# cd $baseDir
-# git init $projectName
-# cd /$baseDir/$projectName
-# gh repo create $projectName --public -y -d "$projectDescription"
+ cd $baseDir
+ git init $projectName
+ cd $baseDir/$projectName
+ gitHubRepoURL=$(git config --get remote.origin.url)
+ do_generate_base_folders
+ do_generate_pm2
+ do_generate_system_vars
+ do_generate_mongod_conf
+ do_generate_readme
+ do_generate_package_json
+ do_generate_core_js
+ do_static_files
+ gh repo create $projectName --$visibility -y -d "$projectDescription"
+ git remote add origin "$gitHubRepoURL"
+ git add .
+ git commit -a -m "initial commit for $projectName"
+ git push $gitHubRepoString  --set-upstream origin master
 }
-
-do_git
-#function do_generate_ {
-
- #>
-#}
-
-#Just to test small bits of code at a time.
-#function do_prompts_test {
- #Prompt for systemId
-#}
-
-#For testing purposes
-#do_prompts_test
 
 function do_prompts {
  #Prompt for projectName
@@ -334,9 +348,9 @@ function do_prompts {
  done
 
  #Prompt for installation's base directory
- read -e -p "Enter The Base Installation Directory (Ex: /opt|Default: /opt): " baseDir
+ read -e -p "Enter The Base Installation Directory (Ex: /opt|Default: /opt): " baseDirInput
  #Default variable if blank
- if [ $baseDir == "" ]
+ if [ "$baseDir" == "" ]
  then
   baseDir='/opt'
  fi
@@ -345,32 +359,15 @@ function do_prompts {
  do
   read -e -p "Enter A Valid Directory (Ex: /opt): " baseDir
   #Default variable if blank
-  if [ $baseDir == ""]
+  if [ "$baseDir" == "" ]
   then
    baseDir='/opt'
   fi
  done
 
- #UnTested code blocks
- #Prompt for installation directory
-# read -e -p ": " Dir
- #Validate the input and keep asking until it is correct.
-# while [[ !  $ ]]
-# do
-#  read -e -p ": " Dir
-# done
-
-
- do_system_dependencies
+# do_system_dependencies
  do_git
-# do_generate_pm2
-# do_generate_system_vars
-# do_generate_mongod_conf
-# do_generate_readme
-# do_generate_package_json
-# do_generate_core_js
 # do_generate_nginx_conf
 }
 
-#do_prompts
-
+do_prompts
