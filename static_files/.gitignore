@@ -104,18 +104,13 @@ dist
 .tern-port
 
 #Custom
-/trash
-*.swp
-*.save
-*.json
-hardcopy.0
-screenlog.0
-
-#Custom
+*.pem
+*.key
 *.swp  
 *.save
 hardcopy.0
 screenlog.0
 *_storage
 /trash
+/system_confs/system_vars.json
 /server/view/public/downloads

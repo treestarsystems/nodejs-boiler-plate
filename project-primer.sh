@@ -1,7 +1,9 @@
 #!/bin/bash
 
-gitHubUsername=''
+systemUsername=$(whoami)
 scriptDir=$(echo "$PWD")
+gitHubAuthorName='Tree Star Systems'
+gitHubAuthorEmail='info@treestarsystems.com'
 projectName=''
 systemId=''
 baseDir='/opt'
@@ -11,6 +13,7 @@ mongoPort=''
 projectDescription=''
 regExValidHostname='(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)'
 regExValidVisibility='(^|\s)\Kpublic(?=\s|$)|(^|\s)\Kprivate(?=\s|$)|(^|\s)\Kinternal(?=\s|$)'
+regExValidMongoInstall='(^|\s)\Ky(?=\s|$)|(^|\s)\Kn(?=\s|$)'
 
 #Pass the desired length of the random string as a number. Ex: genrandom 5
 function genrandom {
@@ -19,13 +22,16 @@ function genrandom {
 
 function do_system_dependencies {
  echo -e "Installing system dependencies..."
- sudo apt install -y software-properties-common
+ sudo apt install -y software-properties-common aptitude
  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+ wget -qO - https://deb.nodesource.com/setup_14.x | bash -E
  sudo apt-add-repository https://cli.github.com/packages
- sudo apt update
- sudo apt -y upgrade
- sudo apt install -y nodejs nmap whois rsync screen git build-essential npm nano gh
- npm install pm2 -g
+ sudo aptitude update
+ sudo aptitude -y upgrade
+ sudo aptitude install -y nodejs
+ sudo aptitude install -y nmap whois rsync screen git build-essential nano gh
+ npm install -g pm2
 }
 
 function do_generate_pm2 {
@@ -64,10 +70,10 @@ function do_generate_system_vars {
  echo -e "Generating system_vars.json file..."
  echo "
   {
-   "username":"root",
-   "homedir":\"$baseDir/$projectName\",
-   "shell":"/bin/bash",
-   "systemId": "$systemId"
+   \"username\":\"$systemUsername\",
+   \"homedir\":\"$baseDir/$projectName\",
+   \"shell\":\"/bin/bash\",
+   \"systemId\": \"$systemId\"
   }" > $baseDir/$projectName/system_confs/system_vars.json
 }
 
@@ -90,7 +96,7 @@ function do_generate_mongod_conf {
     bindIp: 127.0.0.1,::1
     ipv6: true
     tls:
-      mode: "requireTLS"
+      mode: \"requireTLS\"
       certificateKeyFile: $baseDir/$projectName/system_confs/certs/$projectName"_Cert.pem"
     compression:
       compressors: zstd,snappy
@@ -106,9 +112,51 @@ function do_generate_mongod_conf {
 function do_generate_readme {
  #Generate README
  echo -e "Generating README.md file..."
- echo "
-  # $projectName
-  $projectDescription
+ echo -e "
+# $projectName
+## Description:  
+$projectDescription  
+
+## How to Run:
+Run:
+- Production
+\`\`\`
+npm start
+\`\`\`
+
+Save for startup: https://pm2.keymetrics.io/docs/usage/startup/
+
+Once you started all the applications you want to manage using the lines above:
+\`\`\`
+pm2 save
+pm2 startup systemd
+\`\`\`
+
+Other Process Commands:
+- Development
+\`\`\`
+npm run dev
+\`\`\`
+- Stop Instance
+\`\`\`
+npm run stop-instance
+\`\`\`
+- Status of Instance
+\`\`\`
+npm run status-instance
+\`\`\`
+- Restart Instance
+\`\`\`
+npm run restart-instance
+\`\`\`
+- Delete Instance
+\`\`\`
+npm run delete-instance
+\`\`\`
+- Show Instance Logs
+\`\`\`
+npm run log-instance
+\`\`\`
  " > $baseDir/$projectName/README.md
 }
 
@@ -165,6 +213,11 @@ function do_generate_package_json {
 }
 
 function do_generate_nginx_conf {
+ cp $scriptDir/static_files/ssl-params.conf /etc/nginx/snippets/ssl-params.conf
+ echo -e "Generating Temporary Self Signed Certificate..."
+ openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout $baseDir/$projectName/system_confs/certs/$systemId.key -out $baseDir/$projectName/system_confs/certs/$systemId.pem -subj "/C=US/ST=GA/L=City/O=Tree Star Systems, LLC./OU=DEV/CN=$systemId"
+ echo -e "Generating Diffie-Hellman Group. Please be patient..."
+ openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
  echo -e "Generating NGINX Configuration..."
  echo "
   #HTTP to HTTPS Redirect
@@ -184,8 +237,8 @@ function do_generate_nginx_conf {
   server {
        listen 443 ssl;
        listen [::]:443 ssl;
-       # ssl_certificate     /etc/letsencrypt/live/$systemId/fullchain.pem;
-       # ssl_certificate_key /etc/letsencrypt/live/$systemId/privkey.pem;
+       ssl_certificate $baseDir/$projectName/system_confs/certs/$systemId.pem;
+       ssl_certificate_key $baseDir/$projectName/system_confs/certs/$systemId.key;
        server_name $systemId;
 
        proxy_set_header Host \$host;
@@ -203,12 +256,21 @@ function do_generate_nginx_conf {
        }
 
        location /public/ {
-               root /opt/$projectName/server/view;
+               root $baseDir/$projectName/server/view;
                access_log off;
                expires max;
        }
+       include snippets/ssl-params.conf;
   }
- " > /etc/nginx/sites-enabled/default-test
+ " > /etc/nginx/sites-enabled/default-$projectName
+ nginx -t &>/dev/null
+ nginxExitCode=$(echo $?)
+ if [ "$nginxExitCode" == 0  ]
+ then
+  service nginx restart
+ else
+  echo -e "Issue with NGINX configuration. Please check using the \"nginx -t\" command..."
+ fi
 }
 
 function do_generate_core_js {
@@ -227,14 +289,40 @@ function do_static_files {
  cp $scriptDir/static_files/index.js $baseDir/$projectName/server/index.js
  cp $scriptDir/static_files/routes.js $baseDir/$projectName/server/controller/routes.js
  cp $scriptDir/static_files/service.js $baseDir/$projectName/server/service.js
+ cp $scriptDir/static_files/.gitignore $baseDir/$projectName/.gitignore
 }
 
-#TaFix: When setting visibility to anything other than public. The command prompts for credentials. Find a way to resolve that or not show.
+function do_mongo_install {
+ echo "Installing MongoDB 4.4.x"
+ wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
+ echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+ sudo aptitude install -y mongodb
+ do_generate_mongod_conf
+}
+
 function do_git {
+ echo ""
+ #MongoDB Install
+ read -e -p "Would you like to install MongoDB 14.x? (y/n|Default: n): " mongoInstall
+ #Default variable if blank
+ if [ -z $mongoInstall ]
+ then
+  mongoInstall='n'
+ fi
+ #Validate the input and keep asking until it is correct.
+ while [[ ! $(echo $mongoInstall | grep -P $regExValidMongoInstall) == $mongoInstall ]]
+ do
+  read -e -p "Enter A Valid Answer. (y/n|Default: n): " mongoInstall
+  #Default variable if blank
+  if [ -z $mongoInstall ]
+  then
+   mongoInstall='n'
+  fi
+ done
+
  randomString=$(genrandom 5)
  authTokenFile=''
- #Run authentication procedure. Check if already done some how? Maybe allow user to skip
- # gh auth login --with-token < filename
+ #Run authentication procedure.
  #Prompt for authToken file
  read -e -p "Please enter the full path to your GitHub Auth Token file? (Press Enter to manually enter the Token String): " authTokenFile
  if [ ! -f "$authTokenFile" ]
@@ -262,7 +350,7 @@ function do_git {
  # echo -e "Command Exit Code: $ghAuthLoginExitCode"
  fi
  #Repository visibility
- read -e -p "Repo Visibility? (public,private,internal|Default: public): " visibility
+ read -e -p "Repo Visibility? (public/private/internal|Default: public): " visibility
  #Default variable if blank
  if [ -z $visibility ]
  then
@@ -271,7 +359,7 @@ function do_git {
  #Validate the input and keep asking until it is correct.
  while [[ ! $(echo $visibility | grep -P $regExValidVisibility) == $visibility ]]
  do
-  read -e -p "Enter A Valid Visibility String. (public,private,internal|Default: public): " visibility
+  read -e -p "Enter A Valid Visibility String. (public/private/internal|Default: public): " visibility
   #Default variable if blank
   if [ $visibility == ""]
   then
@@ -284,18 +372,24 @@ function do_git {
  cd $baseDir/$projectName
  gitHubRepoURL=$(git config --get remote.origin.url)
  do_generate_base_folders
+ if [ "$mongoInstall" == 'y' ]
+ then
+  do_mongo_install
+ fi
  do_generate_pm2
  do_generate_system_vars
- do_generate_mongod_conf
  do_generate_readme
  do_generate_package_json
  do_generate_core_js
  do_static_files
+ git config user.name "$gitHubAuthorName"
+ git config user.email "$gitHubAuthorEmail"
  gh repo create $projectName --$visibility -y -d "$projectDescription"
  git remote add origin "$gitHubRepoURL"
  git add .
  git commit -a -m "initial commit for $projectName"
  git push $gitHubRepoString  --set-upstream origin master
+ npm i
 }
 
 function do_prompts {
@@ -365,9 +459,9 @@ function do_prompts {
   fi
  done
 
-# do_system_dependencies
+ do_system_dependencies
  do_git
-# do_generate_nginx_conf
+ do_generate_nginx_conf
 }
 
 do_prompts
