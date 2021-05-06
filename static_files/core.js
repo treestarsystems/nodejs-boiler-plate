@@ -128,7 +128,6 @@ module.exports = {
  genRegular,
  genSpecial,
  getRandomNumber,
- loadCollection,
  createDir,
  changePerm,
  incorrectUser,
