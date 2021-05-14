@@ -278,7 +278,7 @@ server {
 
 function do_generate_core_js {
  echo -e "Generating core.js file..."
- sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" $scriptDir/static_files/core.js > $baseDir/$projectName/server/core/core.js
+ sed "s/INSERTIONPOINT/\"projectName\": \"$projectName\",\\n \"dbServer\": \"mongodb\:\/\/localhost\:$mongoPort\/$projectName\?tls\=true\&tlsAllowInvalidCertificates\=true\",\\n \"dbName\": \"$projectName\"/g" $scriptDir/static_files/core.js > $baseDir/$projectName/server/core/core.js
 }
 
 function do_generate_base_folders {

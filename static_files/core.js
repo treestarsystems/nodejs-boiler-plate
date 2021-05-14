@@ -11,6 +11,8 @@ const mongoose = require('mongoose');
 var coreVars = {
  "systemUser": '../../system_confs/system_vars.json',
  "installedDir": path.join(__dirname, '../..'),
+ "dbUserCollection":"userData",
+ "dbSessionsColleciton":"sessionData",
  INSERTIONPOINT
 }
 
