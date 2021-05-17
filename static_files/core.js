@@ -126,6 +126,51 @@ function uuidv4() {
  });
 }
 
+//Source: https://learnersbucket.com/examples/javascript/how-to-validate-json-in-javascript/
+function validateJSON (obj) {
+ let o = JSON.stringify(obj);
+ try{
+  JSON.parse(o);
+ } catch (e) {
+  return false;
+ }
+ return true;
+}
+
+function ensureAuthenticated (req, res, next) {
+ if (req.isAuthenticated()) {
+  return next();
+ }
+// res.send({"status":"failure","message":"Authentication failure"});
+ res.redirect('/login');
+}
+
+function forwardAuthenticated (req, res, next) {
+ if (!req.isAuthenticated()) {
+  return next();
+ }
+// res.send({"status":"success","message":"Session authenticated"});
+ res.redirect('/dashboard');
+}
+
+function validPassword(password, hash, salt) {
+ var hashVerify = crypto
+  .pbkdf2Sync(password, salt, 10000, 64, "sha512")
+  .toString("hex");
+ return hash === hashVerify;
+}
+
+function genPassword(password) {
+ var salt = crypto.randomBytes(32).toString("hex");
+ var genHash = crypto
+  .pbkdf2Sync(password, salt, 10000, 64, "sha512")
+  .toString("hex");
+ return {
+  salt: salt,
+  hash: genHash,
+ };
+}
+
 module.exports = {
  genRegular,
  genSpecial,
@@ -140,5 +185,10 @@ module.exports = {
  insertSpecialChars,
  getRandomInt,
  replaceAt,
- uuidv4
+ uuidv4,
+ validateJSON,
+ ensureAuthenticated,
+ forwardAuthenticated,
+ validPassword,
+ genPassword
 }
