@@ -38,31 +38,62 @@ function do_generate_pm2 {
  echo -e "Generating PM2 conf..."
  echo "
 module.exports = {
- apps : [{
-  name        : \"$projectName\",
-  script      : \"server/index.js\",
-  watch       : true,
-  cwd         : \"$baseDir/$projectName\",
-  instances   : \"max\",
-  exec_mode   : \"cluster\",
-  watch       : [\"./server\",\"./system_confs\"],
-  ignore_watch        : [\"./log_storage\",\"./db_storage\"],
-  out_file    : \"./log_storage/"$projectName"_out.log\",
-  error_file  : \"./log_storage/"$projectName"_err.log\",
-  pid_file    : \"./log_storage/pid/"$projectName"_id.pid\",
-  log_date_format     : \"YYYY-MM-DD HH:mm Z\",
-  kill_timeout : 60000,
-  env: {
-    \"NODE_ENV\": \"prod\",
-    \"PORT\": \"$appProdPort\",
-    \"HOST\": \"0.0.0.0\"
+ apps : [
+  {
+   name        : \"$projectName\",
+   script      : \"server/index.js\",
+   watch       : true,
+   cwd         : \"$baseDir/$projectName\",
+   instances   : \"1\",
+   exec_mode   : \"cluster\",
+   watch       : [\"./server\",\"./system_confs\"],
+   ignore_watch        : [\"./log_storage\",\"./db_storage\",\"system_confs/system_conf.json\",\"server/view\"],
+   out_file    : \"./log_storage/"$projectName"_out.log\",
+   error_file  : \"./log_storage/"$projectName"_err.log\",
+   pid_file    : \"./log_storage/pid/"$projectName"_id.pid\",
+   log_date_format     : \"YYYY-MM-DD HH:mm Z\",
+   kill_timeout : 60000,
+   env: {
+     \"INSTANCE_TYPE\": \"primary\",
+     \"NODE_ENV\": \"prod\",
+     \"PORT\": \"$appProdPort\",
+     \"HOST\": \"0.0.0.0\"
+   },
+   env_dev : {
+     \"INSTANCE_TYPE\": \"primary\",
+     \"NODE_ENV\": \"dev\",
+     \"PORT\": \"$appDevPort\",
+     \"HOST\": \"0.0.0.0\"
+   }
   },
-  env_dev : {
-    \"NODE_ENV\": \"dev\",
-    \"PORT\": \"$appDevPort\",
-    \"HOST\": \"0.0.0.0\"
+  {
+   name        : \"$projectName\",
+   script      : \"server/index.js\",
+   watch       : true,
+   cwd         : \"$baseDir/$projectName\",
+   instances   : \"-1\",
+   exec_mode   : \"cluster\",
+   watch       : [\"./server\",\"./system_confs\"],
+   ignore_watch        : [\"./log_storage\",\"./db_storage\",\"system_confs/system_conf.json\",\"server/view\"],
+   out_file    : \"./log_storage/"$projectName"_out.log\",
+   error_file  : \"./log_storage/"$projectName"_err.log\",
+   pid_file    : \"./log_storage/pid/"$projectName"_id.pid\",
+   log_date_format     : \"YYYY-MM-DD HH:mm Z\",
+   kill_timeout : 60000,
+   env: {
+     \"INSTANCE_TYPE\": \"clone\",
+     \"NODE_ENV\": \"prod\",
+     \"PORT\": \"$appProdPort\",
+     \"HOST\": \"0.0.0.0\"
+   },
+   env_dev : {
+     \"INSTANCE_TYPE\": \"clone\",
+     \"NODE_ENV\": \"dev\",
+     \"PORT\": \"$appDevPort\",
+     \"HOST\": \"0.0.0.0\"
+   }
   }
- }]
+ ]
 }" > $baseDir/$projectName/system_confs/ecosystem.config.js
 }
 
@@ -149,7 +180,7 @@ npm run status-instance
 \`\`\`
 - Restart Instance
 \`\`\`
-npm run restart-instance
+npm run reload-instance
 \`\`\`
 - Delete Instance
 \`\`\`
@@ -175,10 +206,11 @@ function do_generate_package_json {
   \"start\": \"pm2 start system_confs/ecosystem.config.js --env prod\",
   \"dev\": \"pm2 start system_confs/ecosystem.config.js --env dev\",
   \"stop-instance\": \"server/service.js -k\",
-  \"status-instance\": \"pm2 status\",
+  \"status-instance\": \"server/service.js -s\",
+  \"jsonstatus-instance\": \"server/service.js -j\",
   \"delete-instance\": \"server/service.js -d\",
-  \"restart-instance\": \"server/service.js -r\",
-  \"log-instance\": \"pm2 log\"
+  \"reload-instance\": \"server/service.js -r\",
+  \"log-instance\": \"pm2 log $projectName\"
  },
  \"repository\": {
    \"type\": \"git\",
@@ -206,6 +238,7 @@ function do_generate_package_json {
   \"lodash\": \"^4.17.20\",
   \"minimist\": \"^1.2.5\",
   \"mongoose\": \"^5.11.11\",
+  \"multer\": \"^1.4.2\",
   \"mz\": \"^2.7.0\",
   \"node-emoji\": \"^1.10.0\",
   \"nodemailer\": \"^6.4.17\"
@@ -283,7 +316,7 @@ function do_generate_core_js {
 
 function do_generate_base_folders {
  echo -e "Generating base folders..."
- mkdir -p $baseDir/$projectName/{server/{core,controller/cron,view/{pages/{layouts,partials},public/{js,css,images}},model},system_confs/certs}
+ mkdir -p $baseDir/$projectName/{server/{core,controller/cron,view/{pages/{layouts,partials},public/{js,css,images},handlebars},model},system_confs/certs}
 }
 
 function do_static_files {
@@ -292,6 +325,8 @@ function do_static_files {
  cp $scriptDir/static_files/index.js $baseDir/$projectName/server/index.js
  cp $scriptDir/static_files/routes.js $baseDir/$projectName/server/controller/routes.js
  cp $scriptDir/static_files/service.js $baseDir/$projectName/server/service.js
+ cp $scriptDir/static_files/app.js $baseDir/$projectName/server/app.js
+ cp $scriptDir/static_files/helpers.js $baseDir/$projectName/server/view/handlebars/helpers.js
  cp $scriptDir/static_files/.gitignore $baseDir/$projectName/.gitignore
 }
 

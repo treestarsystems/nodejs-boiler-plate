@@ -11,7 +11,7 @@ function apiEndpoint (app) {
 function pagesEndpoint (app) {
  //Pages
 // app.get('/', (req, res) => {
-//  res.render('templateName', {title: 'Page Title', layout: 'layoutName'});
+//  res.render('templateName', {title: 'Page Title', layout: 'layoutName', customJS: []});
 // });
 
 // app.get('/logout', (req,res) => {
