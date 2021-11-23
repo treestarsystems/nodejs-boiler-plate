@@ -30,7 +30,7 @@ function do_system_dependencies {
  sudo aptitude update
  sudo aptitude -y upgrade
  sudo aptitude install -y nodejs
- sudo aptitude install -y nmap whois rsync screen git build-essential nano gh
+ sudo aptitude install -y nmap whois rsync screen build-essential nano nginx
  npm install -g pm2
 }
 
@@ -359,34 +359,30 @@ function do_git {
  done
 
  randomString=$(genrandom 5)
- authTokenFile=''
+ ghUsername=''
  #Run authentication procedure.
- #Prompt for authToken file
- read -e -p "Please enter the full path to your GitHub Auth Token file? (Press Enter to manually enter the Token String): " authTokenFile
- if [ ! -f "$authTokenFile" ]
+ #Prompt for username
+ read -e -p "GitHub Username?: " ghUsername
+ if [ ! -f "$ghUsername" ]
  then
-  #Prompt for authToken string
-  read -e -s -p "Please enter your GitHub Auth Token? (Press Enter to Skip): " authTokenString
-  if [ ! -z "$authTokenString" ]
-  then
-   authTokenFile='/tmp/authtoken-$randomString'
-   echo "$authTokenString" > $authTokenFile
-   gh auth login --with-token < $authTokenFile
-   ghAuthLoginExitCode=$(echo "$?")
-   if  [ ! $ghAuthLoginExitCode == 0 ]
-   then
-    echo -e "\nIncorrect entry or service not available. Please check: \nhttps://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token\n"
-   fi
-  fi
-  if [ -f "$authTokenFile" ]
-  then
-   rm $authTokenFile
-  fi
- else
-  gh auth login --with-token < $authTokenFile
-  ghAuthLoginExitCode=$(echo "$?")
- # echo -e "Command Exit Code: $ghAuthLoginExitCode"
+  while [[ $ghUsername == "" ]]
+  do
+   read -e -p "GitHub Username?: " ghUsername
+  done
  fi
+
+ #Prompt for authToken
+ echo -n "GitHub Auth Token?: "
+ read -s ghToken
+ if [ ! -f "$ghToken" ]
+ then
+  while [[ $ghToken == "" ]]
+  do
+   echo "GitHub Auth Token?: "
+   read -s ghToken
+  done
+ fi
+ echo " "
  #Repository visibility
  read -e -p "Repo Visibility? (public/private/internal|Default: public): " visibility
  #Default variable if blank
@@ -408,7 +404,7 @@ function do_git {
  cd $baseDir
  git init $projectName
  cd $baseDir/$projectName
- gitHubRepoURL=$(git config --get remote.origin.url)
+ curl https://$ghUsername:$ghToken@api.github.com/user/repos -d "{\"name\":\"$projectName\",\"visibility\":\"$visibility\",\"description\":\"$projectDescription\"}"
  do_generate_base_folders
  if [ "$mongoInstall" == 'y' ]
  then
@@ -422,11 +418,12 @@ function do_git {
  do_static_files
  git config user.name "$gitHubAuthorName"
  git config user.email "$gitHubAuthorEmail"
- gh repo create $projectName --$visibility -y -d "$projectDescription"
- git remote add origin "$gitHubRepoURL"
+ git remote add origin https://$ghUsername:$ghToken@github.com/$ghUsername/$projectName.git
  git add .
  git commit -a -m "initial commit for $projectName"
- git push $gitHubRepoString  --set-upstream origin master
+ #A crude way of waiting for GitHub to create the repo. This is horrible.
+ sleep 10
+ git push  -u origin master
  npm i
 }
 
