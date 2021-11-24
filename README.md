@@ -10,7 +10,7 @@ sudo apt update
 sudo apt install git gh
 git clone https://github.com/treestarsystems/nodejs-boiler-plate.git
 ```
-Once this has been cloned you can rerun it anytime and pull down updates.
+Once this has been cloned you can run "git pull" anytime and pull down updates of this script.
 
 ## Customizations:
 Please open the script and edit the following defaults:  
