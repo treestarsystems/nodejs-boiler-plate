@@ -2,7 +2,7 @@
 const core = require('./core/core.js');
 
 function appCode () {
- console.log('Running App Specific Code...')
+ console.log(`${core.coreVars.projectName}|${process.env.pm_id}: Running App Specific Code...`)
 }
 
 module.exports = {
