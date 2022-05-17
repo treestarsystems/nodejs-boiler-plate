@@ -165,6 +165,28 @@ function genPassword(password) {
  };
 }
 
+function defaultErrorHandler (error) {
+ let returnObj = {"status": "","message": "","payload": ""};
+ //This is done just incase you use the "throw" keyword to produce your own error.
+ let errorMessage = ((error.message) ? error.message:error);
+ returnObj.status = "failure";
+ returnObj.message = `Function: ${arguments.callee.caller.name} - Error: ${errorMessage}`;
+ returnObj.payload = error;
+ return returnObj;
+}
+
+async function checkMongoInstall () {
+ let returnObj = {"status": "success","message": "success","payload": ""};
+ try {
+  let output = await exec('which mongod');
+  if (output.stderr) throw output.stderr;
+  returnObj.payload = output.stdout;
+  return returnObj;
+ } catch (e) {
+  return defaultErrorHandler(e);
+ } finally {}
+}
+
 module.exports = {
  genRegular,
  genSpecial,
@@ -183,5 +205,7 @@ module.exports = {
  ensureAuthenticated,
  forwardAuthenticated,
  validPassword,
- genPassword
+ genPassword,
+ defaultErrorHandler,
+ checkMongoInstall
 }
